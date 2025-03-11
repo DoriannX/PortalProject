@@ -1,2 +1,2 @@
 # PortalProject
- Ce projet a pour objectif de développer un prototype fonctionnel d’un jeu inspiré de Portal en utilisant Unreal Engine et C++. L’expérience repose sur une mécanique de portails permettant de téléporter le joueur et des objets à travers l’environnement. Le jeu mettra en avant des énigmes basées sur la physique et un level design favorisant l’expérimentation.
+This project aims to develop a working prototype of a Portal-inspired game using Unreal Engine and C++. The experience is based on a portal mechanic that teleports the player and objects through the environment. The game will feature physics-based puzzles and level design that encourages experimentation.

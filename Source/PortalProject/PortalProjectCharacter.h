@@ -57,6 +57,18 @@ class APortalProjectCharacter : public ACharacter
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* SprintAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Crouch, meta = (AllowPrivateAccess = "true"))
+	float StandingHeight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Crouch, meta = (AllowPrivateAccess = "true"))
+	float CrouchHeight;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Crouch, meta = (AllowPrivateAccess = "true"))
+	bool IsCrouching;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Crouch, meta = (AllowPrivateAccess = "true"))
+	float CrouchAnimationSpeed;
 	
 public:
 	APortalProjectCharacter();
@@ -69,13 +81,13 @@ protected:
 	void Look(const FInputActionValue& Value);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character")
-	void StartCrouch(const FInputActionValue& Value);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "Character")
 	void StartSprint();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character")
 	void StopSprint();
+
+	UFUNCTION(BlueprintCallable, Category=Movement)
+	double GetCurrentCapsuleSize(const double& DeltaTime);
 
 protected:
 	// APawn interface

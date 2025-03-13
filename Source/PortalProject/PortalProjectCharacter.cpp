@@ -17,6 +17,8 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 //////////////////////////////////////////////////////////////////////////
 // APortalProjectCharacter
 
+
+
 APortalProjectCharacter::APortalProjectCharacter()
 {
 	// Set size for collision capsule
@@ -35,6 +37,15 @@ APortalProjectCharacter::APortalProjectCharacter()
 	Mesh1P->bCastDynamicShadow = false;
 	Mesh1P->CastShadow = false;
 	Mesh1P->SetRelativeLocation(FVector(-30.f, 0.f, -150.f));
+}
+
+double APortalProjectCharacter::GetCurrentCapsuleSize(const double& DeltaTime)
+{
+	const float TargetHeight = IsCrouching ? CrouchHeight : StandingHeight;
+	const float CurrentHeight = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+
+	const float NewHeight = FMath::Lerp(CurrentHeight, TargetHeight, DeltaTime * CrouchAnimationSpeed);
+	return NewHeight;
 }
 
 //////////////////////////////////////////////////////////////////////////// Input
@@ -59,18 +70,14 @@ void APortalProjectCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		/*EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);*/
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APortalProjectCharacter::Move);
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APortalProjectCharacter::Look);
-
-		//Crouch
-		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this,
-		                                   &APortalProjectCharacter::StartCrouch);
 
 		//Sprint
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &APortalProjectCharacter::StartSprint);

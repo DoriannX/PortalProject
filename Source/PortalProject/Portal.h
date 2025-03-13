@@ -24,14 +24,4 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
-#pragma region Components
-
-	UPROPERTY(Category=Portal, EditDefaultsOnly, BlueprintReadOnly)
-	TObjectPtr<UStaticMeshComponent> Mesh;
-
-	UPROPERTY(Category = Portal, EditDefaultsOnly, BlueprintReadOnly)
-    TObjectPtr<class UBoxComponent> Trigger;
-	
-#pragma endregion
 };

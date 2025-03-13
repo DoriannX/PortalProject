@@ -16,6 +16,13 @@ struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
+UENUM(BlueprintType)
+enum class EMoveDirectionMode : uint8
+{
+	Fly UMETA(DisplayName = "Fly mode"),
+	Walk UMETA(DisplayName = "Walk mode"),
+};
+
 UCLASS(config=Game)
 class APortalProjectCharacter : public ACharacter
 {
@@ -44,6 +51,12 @@ class APortalProjectCharacter : public ACharacter
 	/** Look Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* LookAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* CrouchAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SprintAction;
 	
 public:
 	APortalProjectCharacter();
@@ -54,6 +67,15 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Character")
+	void StartCrouch(const FInputActionValue& Value);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Character")
+	void StartSprint();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Character")
+	void StopSprint();
 
 protected:
 	// APawn interface
@@ -66,6 +88,4 @@ public:
 	USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 	/** Returns FirstPersonCameraComponent subobject **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
-
 };
-

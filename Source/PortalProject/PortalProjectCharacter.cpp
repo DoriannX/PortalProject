@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PortalProjectCharacter.h"
-#include "PortalProjectProjectile.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "FrameTypes.h"
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
+#include "Kismet/KismetMathLibrary.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -116,5 +115,23 @@ void APortalProjectCharacter::Look(const FInputActionValue& Value)
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
+	}
+}
+
+void APortalProjectCharacter::InitOrientation()
+{
+	float Roll, Pitch, Yaw;
+	float CapsuleRoll, CapsulePitch, CapsuleYaw;
+	const UCapsuleComponent* Capsule = GetCapsuleComponent();
+	if (!IsValid(Capsule))
+	{
+		return;
+	}
+	UKismetMathLibrary::BreakRotator(GetControlRotation(), Roll, Pitch, Yaw);
+	UKismetMathLibrary::BreakRotator(Capsule->GetComponentRotation(), CapsuleRoll, CapsulePitch, CapsuleYaw);
+	if (Roll != 0 || CapsuleRoll != 0)
+	{
+		InitialControlRotation = GetControlRotation();
+		InitialWorldRotation = Capsule->GetComponentRotation();
 	}
 }

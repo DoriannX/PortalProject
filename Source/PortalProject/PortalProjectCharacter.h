@@ -69,9 +69,18 @@ class APortalProjectCharacter : public ACharacter
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Crouch, meta = (AllowPrivateAccess = "true"))
 	float CrouchAnimationSpeed;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	FRotator InitialControlRotation;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	FRotator InitialWorldRotation;
 	
 public:
 	APortalProjectCharacter();
+
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category=Character)
+	void SmoothOrientation();
 
 protected:
 	/** Called for movement input */
@@ -79,6 +88,11 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
+
+	UFUNCTION(BlueprintCallable, Category=Character)
+	void InitOrientation();
+
+	
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character")
 	void StartSprint();

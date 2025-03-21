@@ -19,14 +19,29 @@ public:
 	APortal();
 
 	UFUNCTION()
-	FVector2D GetPortalSize() const;
-
-	UFUNCTION()
 	UStaticMeshComponent* GetPortalVisual() const;
 
 	UFUNCTION()
 	USceneCaptureComponent2D* GetPortalCapture() const;
 
+	UFUNCTION()
+	void SetSpawnedOnActor(AActor* NewActor);
+	UFUNCTION()
+	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool
+	                    bFromSweep, const FHitResult& SweepResult);
+	UFUNCTION()
+	void OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	                  int32 OtherBodyIndex);
+	
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	bool IsLinked() const;
+
+	void Link(APortal* NewPortal);
+
+	UFUNCTION(BlueprintCallable, Category = "Portal")
+	FVector GetBackwardVector(const FVector& ForwardVector) const;
 
 protected:
 	// Called when the game starts or when spawned
@@ -54,26 +69,13 @@ protected:
 	bool ShouldTeleport();
 
 	UFUNCTION(BlueprintCallable, Category = "Portal")
-	void UpdateMaterial() const;
+	void UpdateCollision(const AActor* TouchedActor, bool bIsOverlapping);
 
 	bool IsPointCrossingPortal(const FVector& Point, const FVector& PortalLocation, const FVector& PortalNormal);
 	FVector GetRotAxis(const FVector& Axis) const;
 	FRotator GetTeleportedRotation(const FRotator& DefaultRot) const;
 	void TeleportCharacter() const;
-	FVector UpdateVelocity(FVector Velocity) const;
-
-public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	bool IsLinked() const;
-
-	void Link(APortal* NewPortal);
-
-	UFUNCTION(BlueprintCallable, Category = "Portal")
-	FVector GetBackwardVector(const FVector& ForwardVector) const;
-
-	float GetOffsetAmount() const;
+	FVector UpdateVelocity(const FVector& Velocity) const;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Portal, meta=(AllowPrivateAccess=true))
@@ -95,11 +97,9 @@ protected:
 	APortal* LinkedPortal;
 
 	UPROPERTY()
-	bool bIsLinked;
-
-	UPROPERTY()
 	bool LastInFront;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Portal, meta=(AllowPrivateAccess=true))
-	float OffsetAmount;
+	UPROPERTY()
+	AActor* SpawnedOnActor;
+	
 };

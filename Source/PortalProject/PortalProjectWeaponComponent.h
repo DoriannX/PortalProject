@@ -60,7 +60,7 @@ public:
 	bool HitValidSurface(
 		const FVector& RaycastOrigin, const FHitResult& MainLineTraceHitResult, const TArray<FVector>&
 		PortalRaycastExtremities) const;
-	void SpawnPortal(UWorld* World, const FHitResult& MainLineTraceHitResult) const;
+	void SpawnPortal(UWorld* World, const FHitResult& MainLineTraceHitResult);
 	void PlaySfxes() const;
 	/** Make the weapon Fire a Projectile */
 	UFUNCTION(BlueprintCallable, Category="Weapon")
@@ -74,6 +74,9 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	static bool IsPointOnPlane(const FVector& Point, const FVector& PlaneOrigin, const FVector& PlaneNormal);
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Transform)
+	FVector2D PortalSize;
 
 private:
 	/** The Character holding this weapon*/

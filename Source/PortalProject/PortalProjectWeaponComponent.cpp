@@ -90,7 +90,7 @@ bool UPortalProjectWeaponComponent::HitValidSurface(const FVector& RaycastOrigin
 	return true;
 }
 
-void UPortalProjectWeaponComponent::SpawnPortal(UWorld* const World, const FHitResult& MainLineTraceHitResult) const
+void UPortalProjectWeaponComponent::SpawnPortal(UWorld* const World, const FHitResult& MainLineTraceHitResult)
 {
 	UPortalManager* PortalManager = World->GetSubsystem<UPortalManager>();
 
@@ -119,6 +119,7 @@ void UPortalProjectWeaponComponent::SpawnPortal(UWorld* const World, const FHitR
 	}
 	SpawnedPortal->SetActorLocation(SpawnLocation + SpawnedPortal->GetActorForwardVector() * -SpawnedPortal->GetPortalVisual()->GetRelativeLocation().X); 
 	PortalManager->OnPortalSpawned(SpawnedPortal);
+	SpawnedPortal->SetSpawnedOnActor(MainLineTraceHitResult.GetActor());
 }
 
 void UPortalProjectWeaponComponent::PlaySfxes() const
@@ -160,7 +161,7 @@ void UPortalProjectWeaponComponent::Fire()
 	                                                               MainLineTraceHitResult.Normal,
 	                                                               PlayerController->PlayerCameraManager->
 	                                                               GetActorForwardVector(),
-	                                                               Portal.GetDefaultObject()->GetPortalSize());
+	                                                               PortalSize);
 	const TArray<FVector> PortalRaycastExtremities = ConvertSurfaceExtremityToLineTraceExtremity(
 		LineTraceStart, SurfaceExtremities);
 
@@ -272,3 +273,7 @@ bool UPortalProjectWeaponComponent::IsPointOnPlane(const FVector& Point, const F
 }
 
 FOnPortalSpawned UPortalProjectWeaponComponent::OnPortalSpawned;
+
+
+
+

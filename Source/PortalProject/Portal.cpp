@@ -27,11 +27,6 @@ APortal::APortal()
 	PlayerDetection->SetupAttachment(RootComponent);
 }
 
-FVector2D APortal::GetPortalSize() const
-{
-	return FVector2D(PortalVisual->GetComponentTransform().GetScale3D() * 100);
-}
-
 UStaticMeshComponent* APortal::GetPortalVisual() const
 {
 	if (PortalVisual == nullptr)
@@ -166,6 +161,8 @@ FVector APortal::MirrorVectorByNormal(const FVector& InVector, FVector InNormal)
 void APortal::BeginPlay()
 {
 	Super::BeginPlay();
+	PlayerDetection->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnBeginOverlap);
+	PlayerDetection->OnComponentEndOverlap.AddDynamic(this, &APortal::OnEndOverlap);
 }
 
 // Called every frame
@@ -176,7 +173,7 @@ void APortal::Tick(float DeltaTime)
 
 bool APortal::IsLinked() const
 {
-	return bIsLinked;
+	return IsValid(LinkedPortal);
 }
 
 void APortal::Link(APortal* NewPortal)
@@ -205,18 +202,11 @@ void APortal::Link(APortal* NewPortal)
 	LinkedPortal->PortalCamera->TextureTarget = PortalRenderTexture;
 
 	SetClipPlanes();
-
-	UpdateMaterial();
 }
 
 FVector APortal::GetBackwardVector(const FVector& ForwardVector) const
 {
 	return -ForwardVector;
-}
-
-float APortal::GetOffsetAmount() const
-{
-	return OffsetAmount;
 }
 
 void APortal::SetClipPlanes() const
@@ -332,17 +322,19 @@ void APortal::TeleportCharacter() const
 	{
 		return;
 	}
-	
+
 	const FRotator NewRotation = GetTeleportedRotation(
 		PlayerCharacter->GetActorRotation());
 	const FRotator NewControlRotation = GetTeleportedRotation(
 		PlayerCharacter->GetControlRotation());
-	
+
 	UGameplayStatics::GetPlayerController(World, 0)->SetControlRotation(NewControlRotation);
-	PlayerCharacter->TeleportTo(NewTransformLocation, NewRotation, false, true);
-	
+
 	PlayerCharacter->GetMovementComponent()->Velocity = UpdateVelocity(
 		PlayerCharacter->GetMovementComponent()->Velocity);
+
+	PlayerCharacter->SetActorLocation(NewTransformLocation);
+	PlayerCharacter->SetActorRotation(NewRotation);
 
 	APortalProjectCharacter* PortalCharacter = Cast<APortalProjectCharacter>(PlayerCharacter);
 	APlayerCameraManager* PlayerCameraManager = UGameplayStatics::GetPlayerCameraManager(World, 0);
@@ -350,17 +342,17 @@ void APortal::TeleportCharacter() const
 	{
 		return;
 	}
+	PortalCharacter->InitOrientation();
 	PortalCharacter->SmoothOrientation();
 	PlayerCameraManager->SetGameCameraCutThisFrame();
 }
 
-FVector APortal::UpdateVelocity(FVector Velocity) const
+FVector APortal::UpdateVelocity(const FVector& Velocity) const
 {
 	if (!IsValid(LinkedPortal))
 	{
 		return FVector();
 	}
-	Velocity.Normalize();
 
 	FVector LocalVelocity = GetActorTransform().InverseTransformVector(Velocity);
 
@@ -369,20 +361,64 @@ FVector APortal::UpdateVelocity(FVector Velocity) const
 
 
 	FVector TransformedVelocity = LinkedPortal->GetActorTransform().TransformVector(MirroredLocalVelocity);
+	TransformedVelocity.Normalize();
 	return TransformedVelocity * Velocity.Length();
 }
 
-void APortal::UpdateMaterial() const
+void APortal::UpdateCollision(const AActor* TouchedActor, const bool bIsOverlapping)
 {
 	const UWorld* World = GetWorld();
-	const ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
-	if (!IsValid(PortalMat) || !IsValid(World) || !IsValid(PlayerCharacter))
+	if (!IsValid(TouchedActor) || !IsValid(World))
 	{
 		return;
 	}
-	const float OffsetValue = OffsetAmount;
-	PortalMat->SetScalarParameterValue("OffsetDistance", OffsetValue);
-	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Yellow, TEXT("Material updated"));
+	UActorComponent* TouchedActorComponent = TouchedActor->GetComponentByClass(UStaticMeshComponent::StaticClass());
+	if (!IsValid(TouchedActorComponent))
+	{
+		return;
+	}
+	UStaticMeshComponent* TouchedActorMesh = Cast<UStaticMeshComponent>(TouchedActorComponent);
+	if (!IsValid(TouchedActorMesh))
+	{
+		return;
+	}
+	FName CollisionProfile = bIsOverlapping ? TEXT("OverlapOnlyPawn") : TEXT("BlockAll");
+	TouchedActorMesh->SetCollisionProfileName(CollisionProfile);
+	UKismetSystemLibrary::PrintString(World, "Collision Updated");
 }
 
+void APortal::SetSpawnedOnActor(AActor* NewActor)
+{
+	SpawnedOnActor = NewActor;
+}
 
+void APortal::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                             UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+                             const FHitResult& SweepResult)
+{
+	if (!IsValid(OtherActor) || !IsLinked())
+	{
+		return;
+	}
+	ACharacter* PlayerCharacter = Cast<ACharacter>(OtherActor);
+	if (!IsValid(PlayerCharacter))
+	{
+		return;
+	}
+	UpdateCollision(SpawnedOnActor, true);
+}
+
+void APortal::OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                           int32 OtherBodyIndex)
+{
+	if (!IsValid(OtherActor) || !IsLinked())
+	{
+		return;
+	}
+	ACharacter* PlayerCharacter = Cast<ACharacter>(OtherActor);
+	if (!IsValid(PlayerCharacter))
+	{
+		return;
+	}
+	UpdateCollision(SpawnedOnActor, false);
+}

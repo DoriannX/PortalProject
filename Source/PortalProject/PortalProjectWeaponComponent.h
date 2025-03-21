@@ -58,9 +58,11 @@ public:
 	                                           const FVector2D& Size);
 
 	bool HitValidSurface(
-		const FVector& RaycastOrigin, const FHitResult& MainLineTraceHitResult, const TArray<FVector>&
-		PortalRaycastExtremities) const;
-	void SpawnPortal(UWorld* World, const FHitResult& MainLineTraceHitResult);
+		const FVector& LineTraceOrigin, const FVector& LineTraceEnd, const FVector& Forward, FHitResult&
+		MainLineTraceHitResult) const;
+
+	bool CanPlacePortalHere() const;
+	void SpawnPortal(UWorld* World, const FHitResult& MainLineTraceHitResult) const;
 	void PlaySfxes() const;
 	/** Make the weapon Fire a Projectile */
 	UFUNCTION(BlueprintCallable, Category="Weapon")

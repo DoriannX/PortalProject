@@ -47,6 +47,15 @@ double APortalProjectCharacter::GetCurrentCapsuleSize(const double& DeltaTime)
 	return NewHeight;
 }
 
+bool APortalProjectCharacter::CanPlacePortal() const
+{
+	if (Weapon == nullptr)
+	{
+		return false;
+	}
+	return Weapon->CanPlacePortalHere();
+}
+
 //////////////////////////////////////////////////////////////////////////// Input
 void APortalProjectCharacter::NotifyControllerChanged()
 {

@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "PortalManager.h"
+#include "Camera/CameraComponent.h"
 
 // Sets default values for this component's properties
 UPortalProjectWeaponComponent::UPortalProjectWeaponComponent()
@@ -69,14 +70,30 @@ TArray<FVector> UPortalProjectWeaponComponent::GetSurfaceExtremity(const FVector
 	return Extremity;
 }
 
-bool UPortalProjectWeaponComponent::HitValidSurface(const FVector& RaycastOrigin,
-                                                    const FHitResult& MainLineTraceHitResult,
-                                                    const TArray<FVector>& PortalRaycastExtremities) const
+bool UPortalProjectWeaponComponent::HitValidSurface(const FVector& LineTraceOrigin,
+                                                    const FVector& LineTraceEnd,
+                                                    const FVector& Forward,
+                                                    FHitResult& MainLineTraceHitResult) const
 {
+	const bool HitSomething = CreateLineTrace(LineTraceOrigin, LineTraceEnd, MainLineTraceHitResult, {ECC_WorldStatic});
+
+	if (!HitSomething)
+	{
+		return false;
+	}
+
+
+	const TArray<FVector> SurfaceExtremities = GetSurfaceExtremity(MainLineTraceHitResult.Location,
+	                                                               MainLineTraceHitResult.Normal,
+	                                                               Forward,
+	                                                               PortalSize);
+	const TArray<FVector> PortalRaycastExtremities = ConvertSurfaceExtremityToLineTraceExtremity(
+		LineTraceOrigin, SurfaceExtremities);
+
 	for (auto Extremity : PortalRaycastExtremities)
 	{
 		FHitResult ExtremityRaycastHitResult;
-		if (!CreateLineTrace(RaycastOrigin, Extremity, ExtremityRaycastHitResult, {ECC_WorldStatic}))
+		if (!CreateLineTrace(LineTraceOrigin, Extremity, ExtremityRaycastHitResult, {ECC_WorldStatic}))
 		{
 			return false;
 		}
@@ -90,7 +107,22 @@ bool UPortalProjectWeaponComponent::HitValidSurface(const FVector& RaycastOrigin
 	return true;
 }
 
-void UPortalProjectWeaponComponent::SpawnPortal(UWorld* const World, const FHitResult& MainLineTraceHitResult)
+bool UPortalProjectWeaponComponent::CanPlacePortalHere() const
+{
+	const UCameraComponent* Camera = Character->GetFirstPersonCameraComponent();
+	if (Camera == nullptr)
+	{
+		return false;
+	}
+	FHitResult HitResult;
+	return HitValidSurface(Camera->GetComponentLocation(),
+	                       Camera->GetComponentLocation() +
+	                       Camera->GetForwardVector() * 10000,
+	                       Camera->GetForwardVector(),
+	                       HitResult);
+}
+
+void UPortalProjectWeaponComponent::SpawnPortal(UWorld* const World, const FHitResult& MainLineTraceHitResult) const
 {
 	UPortalManager* PortalManager = World->GetSubsystem<UPortalManager>();
 
@@ -107,8 +139,8 @@ void UPortalProjectWeaponComponent::SpawnPortal(UWorld* const World, const FHitR
 
 	//If the normal is perpendicular to the character up vector then the up vector is the player forward vector translated perpendicular to the normal
 	FVector3d RightVector = FRotationConverter::IsPerpendicular(MainLineTraceHitResult.Normal, FVector::UpVector)
-		                     ? FRotationConverter::GenerateRight(FVector::UpVector, MainLineTraceHitResult.Normal)
-		                     : -PlayerController->GetPawn()->GetActorRightVector();
+		                        ? FRotationConverter::GenerateRight(FVector::UpVector, MainLineTraceHitResult.Normal)
+		                        : -PlayerController->GetPawn()->GetActorRightVector();
 	const FRotator SpawnRotation = FRotationMatrix::MakeFromXY(MainLineTraceHitResult.Normal, RightVector).Rotator();
 
 	const FVector SpawnLocation = MainLineTraceHitResult.Location;
@@ -117,7 +149,9 @@ void UPortalProjectWeaponComponent::SpawnPortal(UWorld* const World, const FHitR
 	{
 		return;
 	}
-	SpawnedPortal->SetActorLocation(SpawnLocation + SpawnedPortal->GetActorForwardVector() * -SpawnedPortal->GetPortalVisual()->GetRelativeLocation().X); 
+	SpawnedPortal->SetActorLocation(
+		SpawnLocation + SpawnedPortal->GetActorForwardVector() * -SpawnedPortal->GetPortalVisual()->
+		GetRelativeLocation().X);
 	PortalManager->OnPortalSpawned(SpawnedPortal);
 	SpawnedPortal->SetSpawnedOnActor(MainLineTraceHitResult.GetActor());
 }
@@ -151,21 +185,9 @@ void UPortalProjectWeaponComponent::Fire()
 
 	FHitResult MainLineTraceHitResult;
 
-	const bool HitSomething = CreateLineTrace(LineTraceStart, LineTraceEnd, MainLineTraceHitResult, {ECC_WorldStatic});
 
-	if (!HitSomething)
-	{
-		return;
-	}
-	const TArray<FVector> SurfaceExtremities = GetSurfaceExtremity(MainLineTraceHitResult.Location,
-	                                                               MainLineTraceHitResult.Normal,
-	                                                               PlayerController->PlayerCameraManager->
-	                                                               GetActorForwardVector(),
-	                                                               PortalSize);
-	const TArray<FVector> PortalRaycastExtremities = ConvertSurfaceExtremityToLineTraceExtremity(
-		LineTraceStart, SurfaceExtremities);
-
-	if (!HitValidSurface(LineTraceStart, MainLineTraceHitResult, PortalRaycastExtremities))
+	if (!HitValidSurface(LineTraceStart, LineTraceEnd, PlayerController->PlayerCameraManager->GetActorForwardVector(),
+	                     MainLineTraceHitResult))
 	{
 		return;
 	}
@@ -178,6 +200,7 @@ void UPortalProjectWeaponComponent::Fire()
 bool UPortalProjectWeaponComponent::AttachWeapon(APortalProjectCharacter* TargetCharacter)
 {
 	Character = TargetCharacter;
+	Character->Weapon = this;
 
 	// Check that the character is valid, and has no weapon component yet
 	if (Character == nullptr || Character->GetInstanceComponents().FindItemByClass<UPortalProjectWeaponComponent>())
@@ -221,8 +244,7 @@ bool UPortalProjectWeaponComponent::CreateLineTrace(
 	{
 		return false;
 	}
-
-
+	
 	const bool HitSomething = UKismetSystemLibrary::LineTraceSingleForObjects(
 		World,
 		Start,
@@ -230,14 +252,10 @@ bool UPortalProjectWeaponComponent::CreateLineTrace(
 		ConvertCollisionChannelToObjectType(CollisionChannels),
 		false,
 		{},
-		EDrawDebugTrace::ForDuration,
+		EDrawDebugTrace::None,
 		HitResult,
-		true,
-		FLinearColor::Red,
-		FLinearColor::Green,
-		5.0f
+		true
 	);
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("line trace"));
 
 	return HitSomething;
 }
@@ -273,7 +291,3 @@ bool UPortalProjectWeaponComponent::IsPointOnPlane(const FVector& Point, const F
 }
 
 FOnPortalSpawned UPortalProjectWeaponComponent::OnPortalSpawned;
-
-
-
-

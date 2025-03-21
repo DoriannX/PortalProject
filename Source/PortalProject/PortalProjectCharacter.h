@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PortalProjectWeaponComponent.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "PortalProjectCharacter.generated.h"
@@ -75,7 +76,9 @@ class APortalProjectCharacter : public ACharacter
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	FRotator InitialWorldRotation;
+
 	
+
 public:
 	APortalProjectCharacter();
 
@@ -92,8 +95,6 @@ protected:
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
-	
-
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character")
 	void StartSprint();
 
@@ -102,6 +103,9 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category=Movement)
 	double GetCurrentCapsuleSize(const double& DeltaTime);
+
+	UFUNCTION(BlueprintCallable, Category=Portal)
+	bool CanPlacePortal() const;
 
 protected:
 	// APawn interface
@@ -114,4 +118,7 @@ public:
 	USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 	/** Returns FirstPersonCameraComponent subobject **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
+
+	UPROPERTY()
+	UPortalProjectWeaponComponent* Weapon;
 };

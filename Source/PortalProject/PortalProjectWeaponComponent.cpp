@@ -151,7 +151,7 @@ void UPortalProjectWeaponComponent::SpawnPortal(UWorld* const World, const FHitR
 	}
 	SpawnedPortal->SetActorLocation(
 		SpawnLocation + SpawnedPortal->GetActorForwardVector() * -SpawnedPortal->GetPortalVisual()->
-		GetRelativeLocation().X);
+		GetRelativeLocation().X * PortalOffsetMultiplier);
 	PortalManager->OnPortalSpawned(SpawnedPortal);
 	SpawnedPortal->SetSpawnedOnActor(MainLineTraceHitResult.GetActor());
 }
@@ -160,7 +160,7 @@ void UPortalProjectWeaponComponent::PlaySfxes() const
 {
 	UGameplayStatics::PlaySoundAtLocation(this, FireSound, Character->GetActorLocation());
 
-	UAnimInstance* AnimInstance = Character->GetMesh1P()->GetAnimInstance();
+	UAnimInstance* AnimInstance = Character->GetMesh1P()->GetAnimInstance();;
 	if (AnimInstance != nullptr)
 	{
 		AnimInstance->Montage_Play(FireAnimation, 1.f);
@@ -176,8 +176,13 @@ void UPortalProjectWeaponComponent::Fire()
 		UE_LOG(LogTemp, Warning, TEXT("Something went wrong in Fire function"));
 		return;
 	}
+	const APortalProjectCharacter* PlayerCharacter = Cast<APortalProjectCharacter>(UGameplayStatics::GetPlayerCharacter(World, 0));
+	if (PlayerCharacter == nullptr || PlayerCharacter->IsDead())
+	{
+		return;
+	}
 
-	const APlayerController* PlayerController = Cast<APlayerController>(Character->GetController());
+	const APlayerController* PlayerController = Cast<APlayerController>(PlayerCharacter->GetController());
 
 	const FVector LineTraceStart = PlayerController->PlayerCameraManager->GetCameraLocation();
 	const FVector LineTraceEnd = LineTraceStart + PlayerController->PlayerCameraManager->GetActorForwardVector() *
@@ -200,7 +205,7 @@ void UPortalProjectWeaponComponent::Fire()
 bool UPortalProjectWeaponComponent::AttachWeapon(APortalProjectCharacter* TargetCharacter)
 {
 	Character = TargetCharacter;
-	Character->Weapon = this;
+	Character->SetWeapon(this);
 
 	// Check that the character is valid, and has no weapon component yet
 	if (Character == nullptr || Character->GetInstanceComponents().FindItemByClass<UPortalProjectWeaponComponent>())

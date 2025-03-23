@@ -10,6 +10,7 @@
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -103,8 +104,12 @@ void APortalProjectCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
 
 void APortalProjectCharacter::Move(const FInputActionValue& Value)
 {
+	if (IsDead())
+	{
+		return;
+	}
 	// input is a Vector2D
-	FVector2D MovementVector = Value.Get<FVector2D>();
+	const FVector2D MovementVector = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
 	{
@@ -116,6 +121,10 @@ void APortalProjectCharacter::Move(const FInputActionValue& Value)
 
 void APortalProjectCharacter::Look(const FInputActionValue& Value)
 {
+	if (IsDead())
+	{
+		return;
+	}
 	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
@@ -143,4 +152,13 @@ void APortalProjectCharacter::InitOrientation()
 		InitialControlRotation = GetControlRotation();
 		InitialWorldRotation = Capsule->GetComponentRotation();
 	}
+}
+
+void APortalProjectCharacter::SetWeapon(UPortalProjectWeaponComponent* NewWeapon)
+{
+	if (NewWeapon == nullptr)
+	{
+		return;
+	}
+	Weapon = NewWeapon;
 }

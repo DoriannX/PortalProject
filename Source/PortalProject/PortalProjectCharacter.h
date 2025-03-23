@@ -28,7 +28,6 @@ UCLASS(config=Game)
 class APortalProjectCharacter : public ACharacter
 {
 	GENERATED_BODY()
-
 	/** Pawn mesh: 1st person view (arms; seen only by self) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Mesh, meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* Mesh1P;
@@ -76,9 +75,14 @@ class APortalProjectCharacter : public ACharacter
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	FRotator InitialWorldRotation;
-
 	
+	UPROPERTY()
+	UPortalProjectWeaponComponent* Weapon;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	bool Dead;
+	
+	
 public:
 	APortalProjectCharacter();
 
@@ -87,6 +91,20 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category=Character)
 	void InitOrientation();
+
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category=Character)
+	void Kill();
+
+	UFUNCTION(BlueprintCallable, Category=Character)
+	bool IsDead() const { return Dead; }
+
+	UFUNCTION()
+	void SetWeapon(UPortalProjectWeaponComponent* NewWeapon);
+
+	/** Returns Mesh1P subobject **/
+	USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
+	/** Returns FirstPersonCameraComponent subobject **/
+	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
 protected:
 	/** Called for movement input */
@@ -107,18 +125,8 @@ protected:
 	UFUNCTION(BlueprintCallable, Category=Portal)
 	bool CanPlacePortal() const;
 
-protected:
 	// APawn interface
 	virtual void NotifyControllerChanged() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 	// End of APawn interface
-
-public:
-	/** Returns Mesh1P subobject **/
-	USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
-	/** Returns FirstPersonCameraComponent subobject **/
-	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
-
-	UPROPERTY()
-	UPortalProjectWeaponComponent* Weapon;
 };

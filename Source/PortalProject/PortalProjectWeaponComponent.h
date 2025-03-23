@@ -80,6 +80,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Transform)
 	FVector2D PortalSize;
 
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Scale, meta=(AllowPrivateAccess=true) )
+	float PortalOffsetMultiplier;
+
 private:
 	/** The Character holding this weapon*/
 	APortalProjectCharacter* Character;

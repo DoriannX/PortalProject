@@ -45,50 +45,30 @@ USceneCaptureComponent2D* APortal::GetPortalCapture() const
 	return PortalCamera;
 }
 
-FVector APortal::TransformDirectionBetweenPortals(const FVector& DirectionToTransform) const
+FVector APortal::TransformDirectionThroughPortal(const FVector& DirectionToTransform) const
 {
-	const FTransform& ActorTransform = GetActorTransform();
-	const FTransform LinkedPortalTransform = LinkedPortal->GetActorTransform();
+	const FTransform& CurrentPortalTransform = GetActorTransform();
+	const FTransform TargetPortalTransform = LinkedPortal->GetActorTransform();
 
-	const FVector LocalSpaceRotationAxis = ActorTransform.InverseTransformVector(DirectionToTransform);
+	const FVector LocalDirection = CurrentPortalTransform.InverseTransformVector(DirectionToTransform);
 
-	const FVector MirroredLocalRotationAxis = MirrorVectorByNormal(
-		MirrorVectorByNormal(LocalSpaceRotationAxis, FVector(1, 0, 0)), FVector(0, 1, 0));
+	const FVector MirroredDirection = MirrorVectorByNormal(
+		MirrorVectorByNormal(LocalDirection, FVector(1, 0, 0)), FVector(0, 1, 0));
 
-	return LinkedPortalTransform.TransformVector(
-		MirroredLocalRotationAxis);
+	return TargetPortalTransform.TransformVector(
+		MirroredDirection);
 }
 
-FRotator APortal::MakeRotationFromAxes(FVector Forward, FVector Right, FVector Up)
+FTransform APortal::GetInvertedPortalTransform(const FTransform& SourcePortalTransform)
 {
-	Forward = Forward.GetSafeNormal();
-	Right = Right.GetSafeNormal();
-	Up = Up.GetSafeNormal();
-
-	const FMatrix RotMatrix(Forward, Right, Up, FVector::ZeroVector);
-
-	return RotMatrix.Rotator();
+    FTransform InvertedPortalTransform = SourcePortalTransform;
+    FVector3d InvertedScale = InvertedPortalTransform.GetScale3D();
+    InvertedScale.Set(InvertedScale.X * -1, InvertedScale.Y * -1, InvertedScale.Z);
+    InvertedPortalTransform.SetScale3D(InvertedScale);
+    return InvertedPortalTransform;
 }
 
-void APortal::BreakRotIntoAxes(const FRotator& InRotation, FVector& X, FVector& Y, FVector& Z)
-{
-	const FMatrix RotMatrix = InRotation.Quaternion().ToMatrix();
-
-	X = RotMatrix.GetUnitAxis(EAxis::X);
-	Y = RotMatrix.GetUnitAxis(EAxis::Y);
-	Z = RotMatrix.GetUnitAxis(EAxis::Z);
-}
-
-FTransform APortal::GetMirroredPortalTransform(const FTransform& SourcePortalTransform)
-{
-	FTransform MirroredPortalTransform = SourcePortalTransform;
-	FVector3d MirroredScale = MirroredPortalTransform.GetScale3D();
-	MirroredScale.Set(MirroredScale.X * -1, MirroredScale.Y * -1, MirroredScale.Z);
-	MirroredPortalTransform.SetScale3D(MirroredScale);
-	return MirroredPortalTransform;
-}
-
-FVector APortal::GetPortalCameraPosition(const FTransform& MirroredPortalTransform,
+FVector APortal::CalculateTeleportedCameraPosition(const FTransform& MirroredPortalTransform,
                                          const FTransform& ViewerCameraTransform) const
 {
 	const FVector ViewerPosition = ViewerCameraTransform.GetLocation();
@@ -106,11 +86,11 @@ FRotator APortal::GetPortalCameraRotation(const FTransform& ViewerCameraTransfor
 	FVector ViewerForwardVector;
 	FVector ViewerRightVector;
 	FVector ViewerUpVector;
-	BreakRotIntoAxes(ViewerRotation, ViewerForwardVector, ViewerRightVector, ViewerUpVector);
-	ViewerForwardVector = TransformDirectionBetweenPortals(ViewerForwardVector);
-	ViewerRightVector = TransformDirectionBetweenPortals(ViewerRightVector);
-	ViewerUpVector = TransformDirectionBetweenPortals(ViewerUpVector);
-	FRotator TeleportedViewerRotation = MakeRotationFromAxes(ViewerForwardVector, ViewerRightVector, ViewerUpVector);
+	UKismetMathLibrary::BreakRotIntoAxes(ViewerRotation, ViewerForwardVector, ViewerRightVector, ViewerUpVector);
+	ViewerForwardVector = TransformDirectionThroughPortal(ViewerForwardVector);
+	ViewerRightVector = TransformDirectionThroughPortal(ViewerRightVector);
+	ViewerUpVector = TransformDirectionThroughPortal(ViewerUpVector);
+	FRotator TeleportedViewerRotation =UKismetMathLibrary::MakeRotationFromAxes(ViewerForwardVector, ViewerRightVector, ViewerUpVector);
 	return TeleportedViewerRotation;
 }
 
@@ -138,8 +118,8 @@ void APortal::UpdateSceneCapture() const
 	const FTransform& ViewerCameraTransform = PlayerCameraManager->GetActorTransform();
 
 	//Update location
-	FTransform MirroredPortalTransform = GetMirroredPortalTransform(GetActorTransform());
-	const FVector TeleportedViewerPosition = GetPortalCameraPosition(MirroredPortalTransform, ViewerCameraTransform);
+	FTransform MirroredPortalTransform = GetInvertedPortalTransform(GetActorTransform());
+	const FVector TeleportedViewerPosition = CalculateTeleportedCameraPosition(MirroredPortalTransform, ViewerCameraTransform);
 
 	//Update rotation
 	const FRotator TeleportedViewerRotation = GetPortalCameraRotation(ViewerCameraTransform);
@@ -165,10 +145,47 @@ void APortal::BeginPlay()
 	PlayerDetection->OnComponentEndOverlap.AddDynamic(this, &APortal::OnEndOverlap);
 }
 
+void APortal::IncreaseLagTime(const float DeltaTime)
+{
+	LagTimeSecond += DeltaTime;
+}
+
+void APortal::ResetLagTime()
+{
+	LagTimeSecond = 0;
+}
+
+void APortal::HandleLag(const float DeltaTime)
+{
+	const float FPS = 1.0f / DeltaTime;
+	const bool IsLagging = FPS < LagThresholdFPS;
+	const UWorld* World = GetWorld();
+	
+	if (World == nullptr)
+	{
+		return;
+	}
+	
+	if (IsLagging)
+	{
+		IncreaseLagTime(DeltaTime);
+	}
+	else
+	{
+		ResetLagTime();
+	}
+	const bool LagPersist = LagTimeSecond > LagTimeThresholdSecond;
+	if (LagPersist)
+	{
+		Destroy();
+	}
+}
+
 // Called every frame
 void APortal::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	HandleLag(DeltaTime);
 }
 
 bool APortal::IsLinked() const
@@ -202,11 +219,6 @@ void APortal::Link(APortal* NewPortal)
 	LinkedPortal->PortalCamera->TextureTarget = PortalRenderTexture;
 
 	SetClipPlanes();
-}
-
-FVector APortal::GetBackwardVector(const FVector& ForwardVector) const
-{
-	return -ForwardVector;
 }
 
 void APortal::SetClipPlanes() const
